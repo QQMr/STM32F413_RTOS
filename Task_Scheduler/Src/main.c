@@ -28,6 +28,24 @@ void task2_handler(void);
 void task3_handler(void);
 void task4_handler(void);
 
+/* some stack memory calculation */
+#define SIZE_TASK_STACK						1024U
+#define SIZE_SCHED_STACK					1024U
+
+#define SRAM_START							0X20000000U
+#define SIZE_SRAM							( 125 * 1024 )
+#define SRAM_END							(SRAM_START + SIZE_SRAM)
+
+#define T1_STACK_START						SRAM_START
+#define T2_STACK_START						(SRAM_START - 1 * SIZE_TASK_STACK)
+#define T3_STACK_START						(SRAM_START - 2 * SIZE_TASK_STACK)
+#define T4_STACK_START						(SRAM_START - 3 * SIZE_TASK_STACK)
+#define SCHED_STACK_START					(SRAM_START - 4 * SIZE_TASK_STACK)
+
+
+
+
+
 
 int main(void)
 {
@@ -48,7 +66,7 @@ void task2_handler(void)
 {
 	while(1)
 	{
-		printf("This is task1\n");
+		printf("This is task2\n");
 	}
 }
 
@@ -56,7 +74,7 @@ void task3_handler(void)
 {
 	while(1)
 	{
-		printf("This is task1\n");
+		printf("This is task3\n");
 	}
 }
 
@@ -64,6 +82,6 @@ void task4_handler(void)
 {
 	while(1)
 	{
-		printf("This is task1\n");
+		printf("This is task4\n");
 	}
 }
