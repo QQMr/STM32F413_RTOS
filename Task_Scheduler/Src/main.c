@@ -30,6 +30,7 @@ void task4_handler(void);
 
 
 void init_systick_timer(uint32_t tick_hz);
+__attribute__((naked)) void init_scheduler_stack(uint32_t sched_top_of_stack);
 
 /* some stack memory calculation */
 #define SIZE_TASK_STACK						1024U
@@ -39,11 +40,11 @@ void init_systick_timer(uint32_t tick_hz);
 #define SIZE_SRAM							( 125 * 1024 )
 #define SRAM_END							(SRAM_START + SIZE_SRAM)
 
-#define T1_STACK_START						SRAM_START
-#define T2_STACK_START						(SRAM_START - 1 * SIZE_TASK_STACK)
-#define T3_STACK_START						(SRAM_START - 2 * SIZE_TASK_STACK)
-#define T4_STACK_START						(SRAM_START - 3 * SIZE_TASK_STACK)
-#define SCHED_STACK_START					(SRAM_START - 4 * SIZE_TASK_STACK)
+#define T1_STACK_START						SRAM_END
+#define T2_STACK_START						(SRAM_END - 1 * SIZE_TASK_STACK)
+#define T3_STACK_START						(SRAM_END - 2 * SIZE_TASK_STACK)
+#define T4_STACK_START						(SRAM_END - 3 * SIZE_TASK_STACK)
+#define SCHED_STACK_START					(SRAM_END - 4 * SIZE_TASK_STACK)
 
 #define TICK_HZ 1000U
 
@@ -54,6 +55,7 @@ void init_systick_timer(uint32_t tick_hz);
 int main(void)
 {
 	printf("Hello Task Scheduler\n");
+	init_scheduler_stack(SCHED_STACK_START);
 	init_systick_timer(TICK_HZ);
     /* Loop forever */
 	printf("Hello World\n");
@@ -110,6 +112,13 @@ void init_systick_timer(uint32_t tick_hz)
 	//enable the systick
 	*pSCSR |= (1 << 0); //enable the counter
 
+}
+
+__attribute__((naked)) void init_scheduler_stack(uint32_t sched_top_of_stack)
+{
+	__asm volatile("MSR MSP,R0");
+	__asm volatile("MSR MSP,%0": : "r" (sched_top_of_stack) );
+	__asm volatile("BX LR");
 }
 
 void SysTick_Handler(void)
