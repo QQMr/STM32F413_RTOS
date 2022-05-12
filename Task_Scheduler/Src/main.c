@@ -33,6 +33,8 @@ void task4_handler(void);
 void init_systick_timer(uint32_t tick_hz);
 __attribute__((naked)) void init_scheduler_stack(uint32_t sched_top_of_stack);
 void init_tasks_stack(void);
+void enable_processor_faults(void);
+__attribute__((naked)) switch_sp_to_psp(void);
 
 /* some stack memory calculation */
 #define SIZE_TASK_STACK						1024U
@@ -58,8 +60,12 @@ uint32_t psp_of_tasks[MAX_TASKS] = {T1_STACK_START,T2_STACK_START,T3_STACK_START
 
 uint32_t task_handlers[MAX_TASKS];
 
+uint8_t current_task = 0;
+
 int main(void)
 {
+	enable_processor_faults();
+
 	printf("Hello Task Scheduler\n");
 	init_scheduler_stack(SCHED_STACK_START);
 
@@ -70,6 +76,10 @@ int main(void)
 
 	init_tasks_stack();
 	init_systick_timer(TICK_HZ);
+
+	switch_sp_to_psp();
+
+	task1_handler();
     /* Loop forever */
 	printf("Hello World\n");
 	for(;;);
@@ -163,9 +173,58 @@ void init_tasks_stack(void)
 
 }
 
+void enable_processor_faults(void)
+{
+	uint32_t *pSHCSR = (uint32_t*)0xE000ED24;
+
+	*pSHCSR |= ( 1 << 16); //mem manage
+	*pSHCSR |= ( 1 << 17); //bus fault
+	*pSHCSR |= ( 1 << 18); //usage fault
+}
+
+uint32_t get_psp_value(void)
+{
+	return psp_of_tasks[current_task];
+}
+
+
+__attribute__((naked)) switch_sp_to_psp(void)
+{
+	//1. initialize the PSP with TASK1 stack start address
+
+	//get the value of psp of current task
+	__asm volatile("PUSH {LR}"); // preserve LR which connects back to main()
+	__asm volatile("BL get_psp_value");
+	__asm volatile("MSR PSP,R0"); //initialize psp
+	__asm volatile("POP {LR}"); // pops back LR
+
+	//2. change SP to PSP using CONTROL register.
+	__asm volatile("MOV R0,#0X02");
+	__asm volatile("MSR CONTROL,R0");
+	__asm volatile("BX LR");
+}
 
 void SysTick_Handler(void)
 {
 
 }
 
+//2. implement the fault handlers
+void HardFault_Handler(void)
+{
+	printf("Exception : Hardfault\n");
+	while(1);
+}
+
+
+void MemManage_Handler(void)
+{
+	printf("Exception : MemManage\n");
+	while(1);
+}
+
+void BusFault_Handler(void)
+{
+	printf("Exception : BusFault\n");
+	while(1);
+}
