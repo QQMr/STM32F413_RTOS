@@ -85,8 +85,17 @@ int main(void)
 	for(;;);
 }
 
+void disable_irq_systick()
+{
+	uint32_t *pNVIC_ISER2 = (uint32_t*)0xE000E180;
+	*pNVIC_ISER2 =  (0x08000);
+	__asm volatile("isb 0xF":::"memory");
+	__asm volatile("isb 0xF":::"memory");
+}
+
 void task1_handler(void)
 {
+	disable_irq_systick();
 	while(1)
 	{
 		printf("This is task1\n");
