@@ -18,6 +18,7 @@
 
 
 #include <stdint.h>
+#include "led.h"
 
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
@@ -106,7 +107,11 @@ void task1_handler(void)
 {
 	while(1)
 	{
-		printf("This is task1\n");
+		//printf("This is task1\n");
+		led_on(LED_GREEN);
+		delay(DELAY_COUNT_1S);
+		led_off(LED_GREEN);
+		delay(DELAY_COUNT_1S);
 	}
 }
 
@@ -114,7 +119,11 @@ void task2_handler(void)
 {
 	while(1)
 	{
-		printf("This is task2\n");
+		//printf("This is task2\n");
+		led_on(LED_RED);
+		delay(DELAY_COUNT_500MS);
+		led_off(LED_RED);
+		delay(DELAY_COUNT_500MS);
 	}
 }
 
@@ -122,7 +131,11 @@ void task3_handler(void)
 {
 	while(1)
 	{
-		printf("This is task3\n");
+		//printf("This is task3\n");
+		led_on(LED_GREEN_SECOND);
+		delay(DELAY_COUNT_250MS);
+		led_off(LED_GREEN_SECOND);
+		delay(DELAY_COUNT_250MS);
 	}
 }
 

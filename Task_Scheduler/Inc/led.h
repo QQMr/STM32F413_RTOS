@@ -8,10 +8,11 @@
 #ifndef LED_H_
 #define LED_H_
 
-#define LED_GREEN  12
-#define LED_ORANGE 13
-#define LED_RED    14
-#define LED_BLUE   15
+#include "stm32f413xx.h"
+
+#define LED_GREEN  			0
+#define LED_RED 			1
+#define LED_GREEN_SECOND  	2
 
 #define DELAY_COUNT_1MS 		 1250U
 #define DELAY_COUNT_1S  		(1000U * DELAY_COUNT_1MS)
