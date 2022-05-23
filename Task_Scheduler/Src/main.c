@@ -66,6 +66,9 @@ int main(void)
 {
 	enable_processor_faults();
 
+
+
+	led_init_all();
 	printf("Hello Task Scheduler\n");
 	init_scheduler_stack(SCHED_STACK_START);
 
