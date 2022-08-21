@@ -56,12 +56,21 @@ __attribute__((naked)) switch_sp_to_psp(void);
 #define HSI_CLOCK 16000000U
 #define SYSTICK_TIM_CLK HSI_CLOCK
 
+#define TASK_RUNNING_STATE 0x00
+#define TASK_BLOCKED_STATE 0xFF
 
-uint32_t psp_of_tasks[MAX_TASKS] = {T1_STACK_START,T2_STACK_START,T3_STACK_START,T4_STACK_START};
-
-uint32_t task_handlers[MAX_TASKS];
 
 uint8_t current_task = 0;
+
+typedef struct
+{
+	uint32_t psp_value;
+	uint32_t block_count;
+	uint8_t current_state;
+	void (*task_handler)(void);
+}TCB_t;
+
+TCB_t user_tasks[MAX_TASKS];
 
 int main(void)
 {
@@ -72,11 +81,6 @@ int main(void)
 	led_init_all();
 	printf("Hello Task Scheduler\n");
 	init_scheduler_stack(SCHED_STACK_START);
-
-	task_handlers[0] = (uint32_t) task1_handler;
-	task_handlers[1] = (uint32_t) task2_handler;
-	task_handlers[2] = (uint32_t) task3_handler;
-	task_handlers[3] = (uint32_t) task4_handler;
 
 	init_tasks_stack();
 	init_systick_timer(TICK_HZ);
@@ -177,17 +181,33 @@ __attribute__((naked)) void init_scheduler_stack(uint32_t sched_top_of_stack)
 #define DUMMY_XPSR 0X01000000U
 void init_tasks_stack(void)
 {
+
+	user_tasks[0].current_state = TASK_RUNNING_STATE;
+	user_tasks[1].current_state = TASK_RUNNING_STATE;
+	user_tasks[2].current_state = TASK_RUNNING_STATE;
+	user_tasks[3].current_state = TASK_RUNNING_STATE;
+
+	user_tasks[0].psp_value = T1_STACK_START;
+	user_tasks[1].psp_value = T2_STACK_START;
+	user_tasks[2].psp_value = T3_STACK_START;
+	user_tasks[3].psp_value = T4_STACK_START;
+
+	user_tasks[0].task_handler = task1_handler;
+	user_tasks[1].task_handler = task2_handler;
+	user_tasks[2].task_handler = task3_handler;
+	user_tasks[3].task_handler = task4_handler;
+
 	uint32_t *pPSP;
 
 	for(int i=0; i<MAX_TASKS; i++)
 	{
-		pPSP = (uint32_t *) psp_of_tasks[i];
+		pPSP = (uint32_t *) user_tasks[i].psp_value;
 
 		pPSP--; //XPSR
 		*pPSP = DUMMY_XPSR; //0X01000000
 
 		pPSP--; //PC
-		*pPSP = task_handlers[i]; //0X01000000
+		*pPSP = (uint32_t) user_tasks[i].task_handler; //0X01000000
 
 		pPSP--; //LR
 		*pPSP = 0xFFFFFFFD; //0X01000000
@@ -198,7 +218,7 @@ void init_tasks_stack(void)
 			*pPSP = 0;
 		}
 
-		psp_of_tasks[i] = (uint32_t)pPSP;
+		user_tasks[i].psp_value = (uint32_t)pPSP;
 	}
 
 }
@@ -214,12 +234,12 @@ void enable_processor_faults(void)
 
 uint32_t get_psp_value(void)
 {
-	return psp_of_tasks[current_task];
+	return user_tasks[current_task].psp_value;
 }
 
 void save_psp_value(uint32_t current_psp_value)
 {
-	psp_of_tasks[current_task] = current_psp_value;
+	user_tasks[current_task].psp_value = current_psp_value;
 }
 
 void update_next_task(void)
