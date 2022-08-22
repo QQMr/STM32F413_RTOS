@@ -24,7 +24,7 @@
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
 #endif
 
-#define MAX_TASKS	4
+#define MAX_TASKS	5
 void task1_handler(void);
 void task2_handler(void);
 void task3_handler(void);
@@ -36,6 +36,9 @@ __attribute__((naked)) void init_scheduler_stack(uint32_t sched_top_of_stack);
 void init_tasks_stack(void);
 void enable_processor_faults(void);
 __attribute__((naked)) switch_sp_to_psp(void);
+uint32_t get_psp_value(void);
+
+void task_delay(uint32_t tick_count);
 
 /* some stack memory calculation */
 #define SIZE_TASK_STACK						1024U
@@ -49,7 +52,8 @@ __attribute__((naked)) switch_sp_to_psp(void);
 #define T2_STACK_START						(SRAM_END - 1 * SIZE_TASK_STACK)
 #define T3_STACK_START						(SRAM_END - 2 * SIZE_TASK_STACK)
 #define T4_STACK_START						(SRAM_END - 3 * SIZE_TASK_STACK)
-#define SCHED_STACK_START					(SRAM_END - 4 * SIZE_TASK_STACK)
+#define IDLE_STACK_START					(SRAM_END - 4 * SIZE_TASK_STACK)
+#define SCHED_STACK_START					(SRAM_END - 5 * SIZE_TASK_STACK)
 
 #define TICK_HZ 1000U
 
@@ -60,7 +64,8 @@ __attribute__((naked)) switch_sp_to_psp(void);
 #define TASK_BLOCKED_STATE 0xFF
 
 
-uint8_t current_task = 0;
+uint8_t current_task = 1; //task1 is runing
+uint32_t g_tick_count = 0;
 
 typedef struct
 {
@@ -105,6 +110,11 @@ void enable_irq_systick()
 	uint32_t *pSCSR = (uint32_t*)0xE000E010;
 
 	*pSCSR = *pSCSR | 0x0002;
+}
+
+void idle_task(void)
+{
+	while(1);
 }
 
 void task1_handler(void)
@@ -186,16 +196,19 @@ void init_tasks_stack(void)
 	user_tasks[1].current_state = TASK_RUNNING_STATE;
 	user_tasks[2].current_state = TASK_RUNNING_STATE;
 	user_tasks[3].current_state = TASK_RUNNING_STATE;
+	user_tasks[4].current_state = TASK_RUNNING_STATE;
 
-	user_tasks[0].psp_value = T1_STACK_START;
-	user_tasks[1].psp_value = T2_STACK_START;
-	user_tasks[2].psp_value = T3_STACK_START;
-	user_tasks[3].psp_value = T4_STACK_START;
+	user_tasks[0].psp_value = IDLE_STACK_START;
+	user_tasks[1].psp_value = T1_STACK_START;
+	user_tasks[2].psp_value = T2_STACK_START;
+	user_tasks[3].psp_value = T3_STACK_START;
+	user_tasks[4].psp_value = T4_STACK_START;
 
-	user_tasks[0].task_handler = task1_handler;
-	user_tasks[1].task_handler = task2_handler;
-	user_tasks[2].task_handler = task3_handler;
-	user_tasks[3].task_handler = task4_handler;
+	user_tasks[0].task_handler = idle_task;
+	user_tasks[1].task_handler = task1_handler;
+	user_tasks[2].task_handler = task2_handler;
+	user_tasks[3].task_handler = task3_handler;
+	user_tasks[4].task_handler = task4_handler;
 
 	uint32_t *pPSP;
 
@@ -262,6 +275,12 @@ __attribute__((naked)) switch_sp_to_psp(void)
 	__asm volatile("MOV R0,#0X02");
 	__asm volatile("MSR CONTROL,R0");
 	__asm volatile("BX LR");
+}
+
+void task_delay(uint32_t tick_count)
+{
+	user_tasks[current_task].block_count = g_tick_count + tick_count;
+	user_tasks[current_task].current_state = TASK_BLOCKED_STATE;
 }
 
 __attribute__((naked)) SysTick_Handler(void)
