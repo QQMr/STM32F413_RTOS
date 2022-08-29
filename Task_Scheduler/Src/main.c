@@ -60,7 +60,7 @@ void task_delay(uint32_t tick_count);
 #define HSI_CLOCK 16000000U
 #define SYSTICK_TIM_CLK HSI_CLOCK
 
-#define TASK_RUNNING_STATE 0x00
+#define TASK_READY_STATE 0x00
 #define TASK_BLOCKED_STATE 0xFF
 
 
@@ -192,11 +192,11 @@ __attribute__((naked)) void init_scheduler_stack(uint32_t sched_top_of_stack)
 void init_tasks_stack(void)
 {
 
-	user_tasks[0].current_state = TASK_RUNNING_STATE;
-	user_tasks[1].current_state = TASK_RUNNING_STATE;
-	user_tasks[2].current_state = TASK_RUNNING_STATE;
-	user_tasks[3].current_state = TASK_RUNNING_STATE;
-	user_tasks[4].current_state = TASK_RUNNING_STATE;
+	user_tasks[0].current_state = TASK_READY_STATE;
+	user_tasks[1].current_state = TASK_READY_STATE;
+	user_tasks[2].current_state = TASK_READY_STATE;
+	user_tasks[3].current_state = TASK_READY_STATE;
+	user_tasks[4].current_state = TASK_READY_STATE;
 
 	user_tasks[0].psp_value = IDLE_STACK_START;
 	user_tasks[1].psp_value = T1_STACK_START;
@@ -283,7 +283,7 @@ void task_delay(uint32_t tick_count)
 	user_tasks[current_task].current_state = TASK_BLOCKED_STATE;
 }
 
-__attribute__((naked)) SysTick_Handler(void)
+__attribute__((naked)) PendSV_Handler(void)
 {
 	/*Save the context of current task */
 
@@ -306,6 +306,34 @@ __attribute__((naked)) SysTick_Handler(void)
 	__asm volatile("MSR PSP,R0");
 	__asm volatile("POP {LR}");
 	__asm volatile("BX LR");
+}
+
+void update_global_tick_count(void)
+{
+	g_tick_count++;
+}
+
+void unblock_task(void)
+{
+	for(int i = 0 ; i < MAX_TASKS ; i++)
+	{
+		if(user_tasks[i].block_count != TASK_READY_STATE)
+		{
+			if(user_tasks[i].block_count == g_tick_count)
+			{
+				user_tasks[i].block_count = TASK_READY_STATE;
+			}
+		}
+	}
+}
+
+//__attribute__((naked)) SysTick_Handler(void)
+void SysTick_Handler(void)
+{
+	update_global_tick_count();
+	unblock_task();
+	//pend the pendsv exception
+	SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
 //2. implement the fault handlers
