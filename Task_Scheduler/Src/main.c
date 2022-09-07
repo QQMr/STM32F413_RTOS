@@ -123,9 +123,9 @@ void task1_handler(void)
 	{
 		//printf("This is task1\n");
 		led_on(LED_GREEN);
-		delay(DELAY_COUNT_1S);
+		task_delay(DELAY_COUNT_1S);
 		led_off(LED_GREEN);
-		delay(DELAY_COUNT_1S);
+		task_delay(DELAY_COUNT_1S);
 	}
 }
 
@@ -135,9 +135,9 @@ void task2_handler(void)
 	{
 		//printf("This is task2\n");
 		led_on(LED_RED);
-		delay(DELAY_COUNT_500MS);
+		task_delay(DELAY_COUNT_500MS);
 		led_off(LED_RED);
-		delay(DELAY_COUNT_500MS);
+		task_delay(DELAY_COUNT_500MS);
 	}
 }
 
@@ -147,9 +147,9 @@ void task3_handler(void)
 	{
 		//printf("This is task3\n");
 		led_on(LED_GREEN_SECOND);
-		delay(DELAY_COUNT_250MS);
+		task_delay(DELAY_COUNT_250MS);
 		led_off(LED_GREEN_SECOND);
-		delay(DELAY_COUNT_250MS);
+		task_delay(DELAY_COUNT_250MS);
 	}
 }
 
@@ -257,8 +257,19 @@ void save_psp_value(uint32_t current_psp_value)
 
 void update_next_task(void)
 {
-	current_task++;
-	current_task = current_task % MAX_TASKS;
+	int state = TASK_BLOCKED_STATE;
+
+	for(int i = 0; i < MAX_TASKS; i++)
+	{
+		current_task++;
+		current_task = current_task % MAX_TASKS;
+		state = user_tasks[current_task].current_state;
+		if( (state == TASK_READY_STATE) && (current_task != 0) )
+			break;
+	}
+
+	if( state == TASK_BLOCKED_STATE )
+		current_task = 0;
 }
 
 __attribute__((naked)) switch_sp_to_psp(void)
@@ -277,10 +288,31 @@ __attribute__((naked)) switch_sp_to_psp(void)
 	__asm volatile("BX LR");
 }
 
+void schedule(void)
+{
+	//pend the pendsv exception
+	SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+}
+
+#define INTERRUPT_DISABLE() __set_PRIMASK(1)
+#define INTERRUPT_ENABLE()  __set_PRIMASK(0)
+
+
 void task_delay(uint32_t tick_count)
 {
-	user_tasks[current_task].block_count = g_tick_count + tick_count;
-	user_tasks[current_task].current_state = TASK_BLOCKED_STATE;
+	//disable interrupt
+	INTERRUPT_DISABLE();
+
+	if(current_task)
+	{
+		user_tasks[current_task].block_count = g_tick_count + tick_count;
+		user_tasks[current_task].current_state = TASK_BLOCKED_STATE;
+		schedule();
+	}
+
+	//enable interrupt
+	INTERRUPT_ENABLE();
+
 }
 
 __attribute__((naked)) PendSV_Handler(void)
@@ -321,7 +353,7 @@ void unblock_task(void)
 		{
 			if(user_tasks[i].block_count == g_tick_count)
 			{
-				user_tasks[i].block_count = TASK_READY_STATE;
+				user_tasks[i].current_state = TASK_READY_STATE;
 			}
 		}
 	}
